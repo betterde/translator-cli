@@ -1,0 +1,93 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Load correct autoloader depending on install location.
+ */
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require __DIR__ . '/vendor/autoload.php';
+} else {
+    require getenv('HOME') . '/.composer/vendor/autoload.php';
+}
+
+use Silly\Application;
+use Illuminate\Container\Container;
+use Betterde\TranslatorCli\Project;
+use Betterde\TranslatorCli\Certification;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\OutputInterface;
+
+/**
+ * Create the application.
+ */
+Container::setInstance(new Container);
+
+$version = 'v1.0.1';
+
+$app = new Application('Translator CLI', $version);
+
+$app->command('auth endpoint project token', function ($endpoint = null, $project = null, $token = null, $force = null) {
+    if (empty($endpoint)) {
+        warn('Please enter the domain name of the Translator service.');
+    }
+
+    if (empty($project)) {
+        warn('Please enter the project id of the Translator service.');
+    }
+
+    if (empty($token)) {
+        warn('Please enter the access token of the Translator service.');
+    }
+
+    Certification::write($endpoint, $project, $token);
+})->addOption('--force', '-f', InputOption::VALUE_NONE, 'Whether to force the certification file to be overwritten')
+    ->descriptions('Generate authentication information', [
+        'endpoint' => 'Translator service api endpoint',
+        'project' => 'Project id in translator service',
+        'token' => 'User access token'
+    ]);
+
+$app->command('sync-project locale [path]', function (OutputInterface $output, $locale = null, $path = null) {
+    if ($path === null) {
+        $path = getcwd();
+    }
+
+    $vendor = sprintf('%s/vendor/autoload.php', $path);
+    if (file_exists($vendor)) {
+        require $vendor;
+    }
+
+    if (is_dir($path . '/resources/lang')) {
+        $lang = 'resources/lang';
+    } elseif (is_dir($path . '/lang')) {
+        $lang = 'lang';
+    } else {
+        warn('No language pack found in the current project directory.');
+        exit(1);
+    }
+
+    Certification::load($path);
+
+    try {
+        $project = new Project($path, $lang, $locale);
+        $project->load(true);
+        $project->sync();
+    } catch (Exception $e) {
+        $output->writeln($e->getMessage());
+    }
+})->descriptions('Synchronize the specified language package of the current project to Translator as a translation template');
+
+$app->command('sync-component language path', function ($project = null, $language = null, $path = null) {
+
+})->descriptions('Synchronize language package of individual components to Translator');
+
+/**
+ * Run the application.
+ */
+try {
+    $app->run();
+} catch (Exception $e) {
+    $stdout = new ConsoleOutput();
+    $stdout->writeln('<fg=red>' . $e->getMessage() . '</>');
+}
