@@ -15,8 +15,6 @@ use Illuminate\Container\Container;
 use Betterde\TranslatorCli\Project;
 use Betterde\TranslatorCli\Certification;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\ConsoleOutput;
-use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Create the application.
@@ -48,7 +46,7 @@ $app->command('auth endpoint project token', function ($endpoint = null, $projec
         'token' => 'User access token'
     ]);
 
-$app->command('sync-project locale [path]', function (OutputInterface $output, $locale = null, $path = null) {
+$app->command('sync-project locale [path]', function ($locale = null, $path = null) {
     if ($path === null) {
         $path = getcwd();
     }
@@ -74,7 +72,7 @@ $app->command('sync-project locale [path]', function (OutputInterface $output, $
         $project->load(true);
         $project->sync();
     } catch (Exception $e) {
-        $output->writeln($e->getMessage());
+        warn($e->getMessage());
     }
 })->descriptions('Synchronize the specified language package of the current project to Translator as a translation template');
 
@@ -88,6 +86,5 @@ $app->command('sync-component language path', function ($project = null, $langua
 try {
     $app->run();
 } catch (Exception $e) {
-    $stdout = new ConsoleOutput();
-    $stdout->writeln('<fg=red>' . $e->getMessage() . '</>');
+    warn($e->getMessage());
 }
